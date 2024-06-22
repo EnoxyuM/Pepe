@@ -1,9 +1,11 @@
 (function() {
-    // Создаем объект для хранения всех функций и переменных библиотеки
-    const MyLibrary = {};
+    const Libu = (function() {
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
 
-    // Инициализация сцены, камеры и рендера
-    MyLibrary.init = function(scene, camera, renderer) {
         const labelRenderer = new THREE.CSS2DRenderer();
         labelRenderer.setSize(window.innerWidth, window.innerHeight);
         labelRenderer.domElement.style.position = 'absolute';
@@ -17,7 +19,7 @@
         const uiElements = new Map();
         let elementCounter = 0;
 
-        MyLibrary.createCube = function() {
+        function createCube() {
             const cubeGeometry = new THREE.BoxGeometry();
             const cubeMaterial = new THREE.MeshBasicMaterial({ color: Math.random() * 0xffffff });
             const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
@@ -30,7 +32,7 @@
             );
             scene.add(cube);
             return cube;
-        };
+        }
 
         const key = {};
         var baseSpeed = 0.02;
@@ -101,13 +103,13 @@
             }
         });
 
-        MyLibrary.newUI = function() {
+        function newUI() {
             const id = elementCounter++;
             uiElements.set(id, null);
             return id;
-        };
+        }
 
-        MyLibrary.setTxtField = function(id, text = undefined, x = 0, y = 0, color = undefined) {
+        function setTxtField(id, text = undefined, x = 0, y = 0, color = undefined) {
             let element = uiElements.get(id);
             if (!element) {
                 element = document.createElement('input');
@@ -122,9 +124,9 @@
             if (color !== undefined) element.style.color = color;
             element.style.left = `${x}px`;
             element.style.top = `${y}px`;
-        };
+        }
 
-        MyLibrary.setSquare = function(id, x, y, width, height, color, follow = undefined) {
+        function setSquare(id, x, y, width, height, color, follow = undefined) {
             let element = uiElements.get(id);
             if (!element) {
                 element = document.createElement('div');
@@ -145,9 +147,9 @@
                 element.style.left = `${x}px`;
                 element.style.top = `${y}px`;
             }
-        };
+        }
 
-        MyLibrary.setCheckbox = function(id, checked, x = 0, y = 0) {
+        function setCheckbox(id, checked, x = 0, y = 0) {
             let element = uiElements.get(id);
             if (!element) {
                 element = document.createElement('input');
@@ -160,9 +162,9 @@
             element.checked = checked;
             element.style.left = `${x}px`;
             element.style.top = `${y}px`;
-        };
+        }
 
-        MyLibrary.setButton = function(id, text, x = 0, y = 0, color = undefined, onClickFunction = null) {
+        function setButton(id, text, x = 0, y = 0, color = undefined, onClickFunction = null) {
             let element = uiElements.get(id);
             if (!element) {
                 element = document.createElement('button');
@@ -178,9 +180,9 @@
             if (onClickFunction) {
                 element.onclick = onClickFunction;
             }
-        };
+        }
 
-        MyLibrary.setSlider = function(id, value, x = 0, y = 0) {
+        function setSlider(id, value, x = 0, y = 0) {
             let element = uiElements.get(id);
             if (!element) {
                 element = document.createElement('input');
@@ -193,9 +195,9 @@
             element.value = value;
             element.style.left = `${x}px`;
             element.style.top = `${y}px`;
-        };
+        }
 
-        MyLibrary.setText = function(id, text, x = 0, y = 0, z = 0, color = undefined, follow = undefined) {
+        function setText(id, text, x = 0, y = 0, z = 0, color = undefined, follow = undefined) {
             let element = uiElements.get(id);
             if (!element) {
                 element = document.createElement('div');
@@ -218,9 +220,9 @@
                 element.style.left = `${x}px`;
                 element.style.top = `${y}px`;
             }
-        };
+        }
 
-        MyLibrary.removeElement = function(id, time = 0) {
+        function removeElement(id, time = 0) {
             const element = uiElements.get(id);
             if (element) {
                 if (time > 0) {
@@ -241,10 +243,10 @@
                     uiElements.delete(id);
                 }
             }
-        };
+        }
 
-        MyLibrary.makeElementDraggable = function(element) {
-                        let offsetX, offsetY;
+        function makeElementDraggable(element) {
+            let offsetX, offsetY;
 
             function onMouseDown(e) {
                 offsetX = e.clientX - element.getBoundingClientRect().left;
@@ -276,9 +278,9 @@
                     element.style.cursor = 'default';
                 }
             };
-        };
+        }
 
-        MyLibrary.syncSliderAndTextField = function(sliderId, textFieldId) {
+        function syncSliderAndTextField(sliderId, textFieldId) {
             const slider = uiElements.get(sliderId);
             const textField = uiElements.get(textFieldId);
 
@@ -291,7 +293,7 @@
                     slider.value = textField.value;
                 });
             }
-        };
+        }
 
         let lastTime = performance.now();
 
@@ -354,8 +356,21 @@
         }
 
         window.addEventListener('resize', onWindowResize);
-    };
 
-    // Экспортируем функции в глобальную область видимости
-    window.MyLibrary = MyLibrary;
+        return {
+            createCube,
+            newUI,
+            setTxtField,
+            setSquare,
+            setCheckbox,
+            setButton,
+            setSlider,
+            setText,
+            removeElement,
+            makeElementDraggable,
+            syncSliderAndTextField
+        };
+    })();
+
+    window.Libu = Libu;
 })();
