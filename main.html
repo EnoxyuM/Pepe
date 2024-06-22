@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+        .hidden-cursor { cursor: none; }
+    </style>
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS2DRenderer.js"></script>
+    <script src="https://yaorenmao.github.io/Pepe/main.js"></script>
+    <script>
+        //mainlib - pointerlock, wasd and mouse camera control library
+        document.addEventListener('DOMContentLoaded', () => {
+            Libu.setText(Libu.newUI(), 'Hello pepe');
+            Libu.createCube();
+        });
+    </script>
+</body>
+</html>
