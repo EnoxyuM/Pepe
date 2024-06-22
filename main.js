@@ -358,7 +358,6 @@
 
     // Expose functions to the global scope
     window.MyLibrary = {
-        camera,
         createCube,
         newUI,
         setTxtField,
