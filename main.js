@@ -359,6 +359,8 @@
 
         return {
             scene,
+            camera,
+            renderer,
             createCube,
             newUI,
             setTxtField,
