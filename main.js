@@ -358,6 +358,7 @@
         window.addEventListener('resize', onWindowResize);
 
         return {
+            scene,
             createCube,
             newUI,
             setTxtField,
