@@ -1,4 +1,3 @@
-// websim.js
 class WebSim {
   constructor(options = {}) {
     this.formatting = options.formatting || 'The user will request a URL accompanied by some instructions. You are to imagine a creative webpage that satisfies these instructions. Always return full, complete, working HTML which will be embedded in an iframe as-is, without any modification. Respond in the same language as the user\'s prompt.';
@@ -27,6 +26,7 @@ class WebSim {
     this.createDOMStructure();
     this.attachEventListeners();
     this.updateLineCount();
+    this.updateFormatting();
   }
 
   createDOMStructure() {
@@ -84,6 +84,8 @@ class WebSim {
 
   attachEventListeners() {
     document.getElementById('toggle-formatting').addEventListener('click', () => this.toggleFormatting());
+    document.getElementById('formatting-textarea').addEventListener('input', () => this.updateFormatting());
+    document.getElementById('code-textarea').addEventListener('input', () => this.updateCode());
     document.getElementById('toggle-code').addEventListener('click', () => this.toggleCode());
     document.getElementById('toggle-console').addEventListener('click', () => this.toggleConsole());
     document.getElementById('toggle-history').addEventListener('click', () => this.toggleHistory());
@@ -129,6 +131,62 @@ class WebSim {
     window.addEventListener('beforeunload', function (event) {
       event.stopImmediatePropagation();
     });
+  }
+
+  updateFormatting() {
+    this.formatting = document.getElementById('formatting-textarea').value;
+  }
+
+  updateCode() {
+    this.code = document.getElementById('code-textarea').value;
+    this.autoRunCode();
+  }
+
+  async sendPrompt() {
+    this.isLoading = true;
+    document.getElementById('send-prompt').disabled = true;
+    try {
+      const response = await fetch('/api/web', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          formatting: this.formatting,
+          prompt: document.getElementById('user-prompt').value
+        })
+      });
+      
+      if (!response.ok) throw new Error('Network response was not ok');
+      
+      const data = await response.json();
+      this.prompt = document.getElementById('user-prompt').value;
+      this.response = data.response;
+      this.iframeContent = data.html;
+      this.code = data.html;
+      this.updateLineCount();
+
+      const now = new Date();
+      this.history.push({
+        date: `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}-${now.getDate()}-${now.getMonth()+1}-${now.getFullYear()}`,
+        prompt: this.prompt,
+        response: data.response,
+        html: data.html
+      });
+      this.currentHistoryIndex = this.history.length - 1;
+
+      document.getElementById('user-prompt').value = '';
+      document.getElementById('prompt-text').textContent = this.prompt;
+      document.getElementById('response-text').textContent = this.response;
+      document.getElementById('result-iframe').srcdoc = this.injectConsoleCode(this.iframeContent);
+      document.getElementById('code-textarea').value = this.code;
+      this.updateHistory();
+    } catch (error) {
+      console.error('Error:', error);
+      this.consoleOutput += `Error: ${error.message}\n`;
+      document.getElementById('console-output').textContent = this.consoleOutput;
+    } finally {
+      this.isLoading = false;
+      document.getElementById('send-prompt').disabled = false;
+    }
   }
 
   async sendPrompt() {
@@ -245,7 +303,7 @@ class WebSim {
 
   autoRunCode() {
     if (this.autoRun) {
-      this.runCode();
+      document.getElementById('result-iframe').srcdoc = this.injectConsoleCode(this.code);
     }
   }
 
@@ -318,4 +376,5 @@ class WebSim {
       item.addEventListener('click', () => this.loadHistoryItem(parseInt(item.dataset.index)));
     });
   }
+
 }
