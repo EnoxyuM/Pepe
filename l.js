@@ -25,10 +25,17 @@ const m = {
 let p = 0;
 let y = 0;
 
-function li(ms, sp, a, k) {
+function li(ms, sp, ck, nk) {
     if (ms !== undefined) s.ms = ms;
     if (sp !== undefined) s.sp = sp;
-    if (a !== undefined && k !== undefined && a in s.kb) s.kb[a] = k;
+    if (ck !== undefined && nk !== undefined) {
+        for (let a in s.kb) {
+            if (s.kb[a] === ck) {
+                s.kb[a] = nk;
+                break;
+            }
+        }
+    }
 }
 
 function kd(e) {
