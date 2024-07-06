@@ -1,23 +1,540 @@
-<!DOCTYPE html>
+<html><head><title>FS Code Editor</title><style>
+body,html{margin:0;padding:0;height:100vh;overflow:hidden;font-family:sans-serif;background:#1e1e1e;color:#e0e0e0}
+#editor,#scene,#console{width:100%;border:none;position:absolute;top:0;left:0}
+#editor,#scene{height:100%;}
+#editor {z-index: 10;}
+#editor .CodeMirror{height:100%;background-color: transparent;}
+.cm-s-monokai.CodeMirror { background: transparent; color: #f8f8f2; }
+.cm-s-monokai .CodeMirror-gutters { background: rgba(30, 30, 30, 0.5); border-right: 0px; }
+.cm-s-monokai .CodeMirror-linenumber { color: #5c5c5c; }
+#console {height:30%;bottom:0;top:auto;background-color:rgba(0,0,0,0.8);color:#fff;overflow-y:auto;display:none;z-index:20;padding:10px;box-sizing:border-box;font-family:monospace;}
+.error {color: #ff6b6b;}
+.log {color: #4ecdc4;}
+#scene { pointer-events: auto; }
+#editor { pointer-events: none; }
+.CodeMirror-matchingbracket { background-color: #ff0000 !important; color: #000000 !important; }
+.cm-matchhighlight {background-color: #774a77;}
+.CodeMirror-selection-highlight-scrollbar {background-color: #4a4a4a;}
+#menu {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(30, 30, 30, 0.9);
+    border: 1px solid #444;
+    padding: 20px;
+    max-height: 80vh;
+    overflow-y: auto;
+    display: none;
+    z-index: 1000;
+}
+#menu button {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    margin: 5px 0;
+    background: #333;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+}
+#menu button:hover {
+    background: #444;
+}
+#menu button.selected {
+    background: #555;
+}
+#menu button .name {
+    color: #ff9800;
+    font-weight: bold;
+    display: block;
+}
+#saveBtn {
+    background: #4CAF50 !important;
+}
+#saveBtn:hover {
+    background: #45a049 !important;
+}
+#currentFileName {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 5px 10px;
+    border-radius: 5px;
+    z-index: 1000;
+}
+</style></head><body>
+<div id="editor"></div>
+<iframe id="scene"></iframe>
+<div id="console"></div>
+<div id="menu"></div>
+<div id="currentFileName"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/codemirror.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/theme/monokai.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/mode/htmlmixed/htmlmixed.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/mode/css/css.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/mode/xml/xml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/addon/search/match-highlighter.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/addon/scroll/annotatescrollbar.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/addon/search/matchesonscrollbar.min.js"></script>
+<script>
+const editor = CodeMirror(document.getElementById("editor"), {
+    lineNumbers: true,
+    mode: "htmlmixed",
+    theme: "monokai",
+    lineWrapping: true,
+    viewportMargin: Infinity,
+    matchBrackets: true,
+    autoCloseBrackets: true,
+    indentUnit: 4,
+    tabSize: 4,
+    indentWithTabs: false,
+    extraKeys: {
+        "Ctrl-Space": "autocomplete",
+        "Ctrl-S": function(cm) {
+            saveCurrentCode(true);
+            return false;
+        }
+    },
+    highlightSelectionMatches: {showToken: /\w/, annotateScrollbar: true}
+});
+
+const scene = document.getElementById('scene');
+const consoleElem = document.getElementById('console');
+const menu = document.getElementById('menu');
+const currentFileName = document.getElementById('currentFileName');
+
+const initialCode = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instructions</title>
     <style>
-        body { margin: 0; overflow: hidden; }
-        canvas { display: block; }
-        .hidden-cursor { cursor: none; }
+        body { margin: 0; overflow: hidden; background-color: #1e1e1e; }
+        #instructions {
+            position: absolute;
+            top: 10px;
+            left: 0;
+            width: 100%;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+            text-align: center;
+            text-shadow: 1px 1px 2px black;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-	<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS2DRenderer.js"></script>
-    <script src="https://yaorenmao.github.io/Pepe/main.js"></script>
-    <script>
-        //mainlib - pointerlock, wasd and mouse camera control library
-        document.addEventListener('DOMContentLoaded', () => {
-            Libu.setText(Libu.newUI(), 'Hello pepe');
-            Libu.createCube();
-        });
-    </script>
+    <div id="instructions">
+        Alt - Code Editor<br>
+        Shift+Alt - Console<br>
+        Ctrl+Wheel - Font Size<br>
+        Shift+Wheel - Transparency<br>
+        ESC - Menu<br>
+        LMB - Load, MMB - Delete, RMB - (Re)Name<br>
+        Ctrl+S - Save to current file
+    </div>
 </body>
-</html>
+</html>`;
+
+editor.setValue(initialCode);
+
+function updateScene() {
+    const code = editor.getValue();
+    const wrappedCode = `
+        <script>
+            window.onerror = function(message, source, lineno, colno, error) {
+                window.parent.postMessage({type: 'error', content: 'Error: ' + message + ' (' + source + ':' + lineno + ':' + colno + ')'}, '*');
+                return true;
+            };
+            
+            const originalConsoleLog = console.log;
+            const originalConsoleError = console.error;
+            
+            console.log = function() {
+                const args = Array.from(arguments);
+                window.parent.postMessage({type: 'log', content: args.join(' ')}, '*');
+                originalConsoleLog.apply(this, arguments);
+            };
+            
+            console.error = function() {
+                const args = Array.from(arguments);
+                window.parent.postMessage({type: 'error', content: args.join(' ')}, '*');
+                originalConsoleError.apply(this, arguments);
+            };
+
+            window.addEventListener('beforeunload', function (event) {
+                event.stopImmediatePropagation();
+            });
+        <\/script>
+    ` + code;
+    scene.srcdoc = wrappedCode;
+}
+
+editor.on("change", updateScene);
+updateScene();
+
+let showingEditor = false;
+let showingConsole = false;
+
+function toggleEditor() {
+    if (showingEditor) {
+        editor.getWrapperElement().style.display = 'none';
+        scene.focus();
+        scene.style.zIndex = '5';
+        editor.getWrapperElement().style.pointerEvents = 'none';
+        scene.style.pointerEvents = 'auto';
+    } else {
+        editor.getWrapperElement().style.display = 'block';
+        editor.focus();
+        scene.style.zIndex = '0';
+        editor.getWrapperElement().style.pointerEvents = 'auto';
+        scene.style.pointerEvents = 'none';
+    }
+    showingEditor = !showingEditor;
+}
+
+function toggleConsole() {
+    if (showingConsole) {
+        consoleElem.style.display = 'none';
+    } else {
+        consoleElem.style.display = 'block';
+    }
+    showingConsole = !showingConsole;
+}
+
+let altPressed = false;
+let shiftAltPressed = false;
+
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        toggleMenu();
+    } else if (event.altKey && !event.shiftKey && !altPressed) {
+        event.preventDefault();
+        altPressed = true;
+        toggleEditor();
+    } else if (event.altKey && event.shiftKey && !shiftAltPressed) {
+        event.preventDefault();
+        shiftAltPressed = true;
+        toggleConsole();
+    }
+});
+
+document.addEventListener('keyup', function(event) {
+    if (!event.altKey) {
+        altPressed = false;
+        shiftAltPressed = false;
+    }
+});
+
+function logToConsole(type, content) {
+    const logElem = document.createElement('div');
+    logElem.className = type;
+    logElem.textContent = content;
+    consoleElem.appendChild(logElem);
+    consoleElem.scrollTop = consoleElem.scrollHeight;
+}
+
+window.addEventListener('message', function(event) {
+    if (event.source === scene.contentWindow) {
+        const message = event.data;
+        logToConsole(message.type, message.content);
+    }
+});
+
+editor.getWrapperElement().style.display = 'block';
+consoleElem.style.display = 'none';
+scene.style.zIndex = '0';
+editor.focus();
+editor.getWrapperElement().style.pointerEvents = 'auto';
+scene.style.pointerEvents = 'none';
+showingEditor = true;
+
+scene.addEventListener('load', function() {
+    scene.contentWindow.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            toggleMenu();
+        } else if (event.altKey && !event.shiftKey && !altPressed) {
+            event.preventDefault();
+            altPressed = true;
+            toggleEditor();
+        } else if (event.altKey && event.shiftKey && !shiftAltPressed) {
+            event.preventDefault();
+            shiftAltPressed = true;
+            toggleConsole();
+        }
+    });
+
+    scene.contentWindow.addEventListener('keyup', function(event) {
+        if (!event.altKey) {
+            altPressed = false;
+            shiftAltPressed = false;
+        }
+    });
+});
+
+// Font size control
+let fontSize = 14;
+editor.getWrapperElement().addEventListener('wheel', function(e) {
+    if (e.ctrlKey) {
+        e.preventDefault();
+        fontSize += e.deltaY > 0 ? -1 : 1;
+        fontSize = Math.max(8, Math.min(24, fontSize));
+        editor.getWrapperElement().style.fontSize = fontSize + 'px';
+        editor.refresh();
+    }
+});
+
+// Transparency control
+let opacity = 0.5;
+editor.getWrapperElement().addEventListener('wheel', function(e) {
+    if (e.shiftKey) {
+        e.preventDefault();
+        opacity += e.deltaY > 0 ? -0.05 : 0.05;
+        opacity = Math.max(0.1, Math.min(1, opacity));
+        editor.getWrapperElement().style.backgroundColor = `rgba(30, 30, 30, ${opacity})`;
+    }
+});
+
+// Prevent beforeunload event
+window.addEventListener('beforeunload', function (event) {
+    event.stopImmediatePropagation();
+});
+
+// Menu functionality
+function toggleMenu() {
+    if (menu.style.display === 'none' || menu.style.display === '') {
+        menu.style.display = 'block';
+        loadSavedCodes();
+    } else {
+        menu.style.display = 'none';
+    }
+}
+
+function saveBinLoc(key, type, start, indexes, ...data) {
+    if (type !== 'int' && type !== 'float' && type !== 'text') {
+        throw new Error('Неверный тип. Допустимые типы: int, float, text');
+    }
+
+    let buffer;
+    if (type === 'text') {
+        let encoder = new TextEncoder();
+        let textData = data[0];
+        buffer = encoder.encode(textData).buffer;
+    } else {
+        if (start < 0 || indexes <= 0 || start + indexes > data.length) {
+            throw new Error('Неверные значения start или indexes');
+        }
+        buffer = new ArrayBuffer(indexes * 4);
+        let view = type === 'int' ? new Int32Array(buffer) : new Float32Array(buffer);
+        for (let i = 0; i < indexes; i++) {
+            view[i] = data[start + i];
+        }
+    }
+
+    let base64String = btoa(String.fromCharCode.apply(null, new Uint8Array(buffer)));
+    localStorage.setItem(key, base64String);
+}
+
+function loadBinLoc(key, type, start, indexes) {
+    if (type !== 'int' && type !== 'float' && type !== 'text') {
+        throw new Error('Неверный тип. Допустимые типы: int, float, text');
+    }
+
+    let storedData = localStorage.getItem(key);
+
+    if (storedData) {
+        let binaryString = atob(storedData);
+        let buffer = new ArrayBuffer(binaryString.length);
+        let uint8View = new Uint8Array(buffer);
+
+        for (let i = 0; i < binaryString.length; i++) {
+            uint8View[i] = binaryString.charCodeAt(i);
+        }
+
+        if (type === 'text') {
+            let decoder = new TextDecoder();
+            let fullText = decoder.decode(uint8View);
+            
+            if (start === undefined) start = 0;
+            if (indexes === undefined) indexes = Math.ceil(fullText.length / 4);
+            
+            let startChar = start * 4;
+            let endChar = Math.min(startChar + indexes * 4, fullText.length);
+            
+            return fullText.slice(startChar, endChar);
+        } else {
+            let view = type === 'int' ? new Int32Array(buffer) : new Float32Array(buffer);
+            let totalIndexes = view.length;
+            
+            if (start === undefined) start = 0;
+            if (indexes === undefined) indexes = totalIndexes - start;
+            if (start < 0 || indexes <= 0 || start + indexes > totalIndexes) {
+                throw new Error('Неверные значения start или indexes');
+            }
+
+            return Array.from(view.slice(start, start + indexes));
+        }
+    } else {
+        return null;
+    }
+}
+
+let currentCodeIndex = -1;
+
+function saveCurrentCode(overwrite = false) {
+    const currentCode = editor.getValue();
+    const currentDate = new Date();
+    let savedCodes = loadSavedCodes();
+    
+    if (overwrite && currentCodeIndex !== -1) {
+        savedCodes[currentCodeIndex].code = currentCode;
+        savedCodes[currentCodeIndex].date = currentDate;
+    } else {
+        savedCodes.unshift({
+            date: currentDate,
+            code: currentCode,
+            name: ''
+        });
+        currentCodeIndex = 0;
+    }
+
+    const serializedData = JSON.stringify({
+        codes: savedCodes,
+        lastOpenedIndex: currentCodeIndex
+    });
+    
+    saveBinLoc('@Xiripyu/code-editor', 'text', 0, 0, serializedData);
+    loadSavedCodes();
+    updateCurrentFileName();
+}
+
+function loadSavedCodes() {
+    const savedCodesData = loadBinLoc('@Xiripyu/code-editor', 'text');
+    let savedCodes = [];
+    
+    if (savedCodesData) {
+        const parsedData = JSON.parse(savedCodesData);
+        savedCodes = parsedData.codes;
+        currentCodeIndex = parsedData.lastOpenedIndex;
+    }
+
+    menu.innerHTML = '<button id="saveBtn">Save New Code</button>';
+    savedCodes.forEach((savedCode, index) => {
+        const button = document.createElement('button');
+        if (savedCode.name) {
+            button.innerHTML = `<span class="name">${savedCode.name}</span>`;
+        }
+        button.innerHTML += formatDate(new Date(savedCode.date));
+        button.onclick = () => loadCode(index);
+        button.oncontextmenu = (e) => {
+            e.preventDefault();
+            const name = prompt('Enter a name for this code:', savedCode.name);
+            if (name !== null) {
+                savedCode.name = name;
+                const serializedData = JSON.stringify({
+                    codes: savedCodes,
+                    lastOpenedIndex: currentCodeIndex
+                });
+                saveBinLoc('@Xiripyu/code-editor', 'text', 0, 0, serializedData);
+                loadSavedCodes();
+            }
+        };
+        button.onmousedown = (e) => {
+            if (e.button === 1) {
+                savedCodes.splice(index, 1);
+                if (currentCodeIndex === index) {
+                    currentCodeIndex = -1;
+                } else if (currentCodeIndex > index) {
+                    currentCodeIndex--;
+                }
+                const serializedData = JSON.stringify({
+                    codes: savedCodes,
+                    lastOpenedIndex: currentCodeIndex
+                });
+                saveBinLoc('@Xiripyu/code-editor', 'text', 0, 0, serializedData);
+                loadSavedCodes();
+            }
+        };
+        if (index === currentCodeIndex) {
+            button.classList.add('selected');
+        }
+        menu.appendChild(button);
+    });
+
+    document.getElementById('saveBtn').onclick = () => saveCurrentCode(false);
+
+    return savedCodes;
+}
+
+function formatDate(date) {
+    const now = new Date();
+    const diff = now - date;
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    const months = Math.floor(days / 30);
+    const years = Math.floor(months / 12);
+
+    if (years > 0) {
+        return `${years}y ${months % 12}m ${days % 30}d ${hours % 24}:${minutes % 60}:${seconds % 60} ago (${date.toLocaleString()})`;
+    } else if (months > 0) {
+        return `${months}m ${days % 30}d ${hours % 24}:${minutes % 60}:${seconds % 60} ago (${date.toLocaleString()})`;
+    } else if (days > 0) {
+        return `${days}d ${hours % 24}:${minutes % 60}:${seconds % 60} ago (${date.toLocaleString()})`;
+    } else if (hours > 0) {
+        return `${hours}:${minutes % 60}:${seconds % 60} ago (${date.toLocaleString()})`;
+    } else if (minutes > 0) {
+        return `${minutes}:${seconds % 60} ago (${date.toLocaleString()})`;
+    } else {
+        return `${seconds} s ago (${date.toLocaleString()})`;
+    }
+}
+
+function loadCode(index) {
+    const savedCodes = loadSavedCodes();
+    if (savedCodes[index]) {
+        editor.setValue(savedCodes[index].code);
+        currentCodeIndex = index;
+        updateScene();
+        const serializedData = JSON.stringify({
+            codes: savedCodes,
+            lastOpenedIndex: currentCodeIndex
+        });
+        saveBinLoc('@Xiripyu/code-editor', 'text', 0, 0, serializedData);
+        loadSavedCodes();
+        updateCurrentFileName();
+    }
+}
+
+function updateCurrentFileName() {
+    const savedCodes = loadSavedCodes();
+    if (currentCodeIndex !== -1 && savedCodes[currentCodeIndex]) {
+        const currentCode = savedCodes[currentCodeIndex];
+        currentFileName.textContent = currentCode.name || '';
+    } else {
+        currentFileName.textContent = '';
+    }
+}
+
+// Initialize
+const savedCodesData = loadBinLoc('@Xiripyu/code-editor', 'text');
+if (savedCodesData) {
+    const parsedData = JSON.parse(savedCodesData);
+    currentCodeIndex = parsedData.lastOpenedIndex;
+    if (currentCodeIndex !== -1 && parsedData.codes[currentCodeIndex]) {
+        editor.setValue(parsedData.codes[currentCodeIndex].code);
+        updateScene();
+    }
+}
+loadSavedCodes();
+updateCurrentFileName();
+</script></body></html>
